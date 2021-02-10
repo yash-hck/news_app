@@ -1,4 +1,8 @@
 
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+
 import 'package:flutter/material.dart';
 import 'package:newsapp/Models/article_model.dart';
 import 'package:newsapp/Models/categorymodel.dart';
@@ -18,6 +22,38 @@ class _HomePageState extends State<HomePage> {
   List<CategoryModel> categories = [];
   List<ArticleModel> articles = [];
   bool _loading = true;
+  List<ArticleModel> news = [];
+
+  Future<void> getNews()async{
+    String url = 'https://newsapi.org/v2/top-headlines?country=in&apiKey=43f0eb807d8145e9862f6a525b80f51e';
+
+    var respons = await http.get(url);
+
+    var jsonData = jsonDecode(respons.body);
+    print(jsonData['status'].toString());
+    if(jsonData['status'] == "ok"){
+      jsonData['articles'].forEach((element){
+
+        if(element['urlToImage']!=null && element['description'] != null){
+
+          ArticleModel articleModel = ArticleModel(
+            title: element['title'],
+            description: element['description'],
+            author: element['author'],
+            urltoImage: element['urlToImage'],
+            url: element["url"],
+            context: element['context'],
+            //publishedAt: element['publishedAt']
+          );
+          articles.add(articleModel);
+        }
+      });
+    }
+    setState(() {
+      _loading = false;
+    });
+
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,56 +85,46 @@ class _HomePageState extends State<HomePage> {
           child: CircularProgressIndicator(),
         ),
       ):
-      SingleChildScrollView(
-        child: Container(
-          padding: EdgeInsets.symmetric(horizontal: 10),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+      Container(
+        padding: EdgeInsets.symmetric(horizontal: 10),
+        child: RefreshIndicator(
+          onRefresh: getdata,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: articles.length + 1,
+            scrollDirection: Axis.vertical,
+            physics: ClampingScrollPhysics(),
+            itemBuilder: (context, index){
+              if(index == 0)
+                return Container(
 
-              //Categories//
-
-              Container(
-
-                height: 70,
-                child: ListView.builder(
-                  itemCount: categories.length,
-                  shrinkWrap: true,
-                  scrollDirection: Axis.horizontal,
-                  itemBuilder: (context, index){
-                    return CategoryTile(categoryName: categories[index].categoryName,imageUrl: categories[index].imageUrl);
-                  },
-                ),
-              ),
-
-              // Articles and blog
-              Container(
-                padding: EdgeInsets.only(top: 10),
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: articles.length,
-                  scrollDirection: Axis.vertical,
-                  physics: ClampingScrollPhysics(),
-                  itemBuilder: (context, index){
-                    return BlogTile(imageUrl: articles[index].urltoImage, title: articles[index].title, desc: articles[index].description,url: articles[index].url,);
-                  },
-                ),
-              )
-
-            ],
+                  height: 70,
+                  child: ListView.builder(
+                    itemCount: categories.length,
+                    shrinkWrap: true,
+                    scrollDirection: Axis.horizontal,
+                    itemBuilder: (context, index){
+                      return CategoryTile(categoryName: categories[index].categoryName,imageUrl: categories[index].imageUrl);
+                    },
+                  ),
+                );
+              return BlogTile(imageUrl: articles[index-1].urltoImage, title: articles[index-1].title, desc: articles[index-1].description,url: articles[index-1].url,);
+            },
           ),
         ),
       ),)
     );
   }
 
-  getNews() async{
-    News newsClass = News();
-    await newsClass.getNews();
-    articles = newsClass.news;
+
+
+  Future<void> getdata() async{
     setState(() {
-      _loading = false;
+      articles.clear();
+      getNews();
     });
+
+
   }
 
   @override
